@@ -71,6 +71,7 @@ func main() {
 	router.HandleFunc("/health", healthHandler).Methods("GET")
 	router.HandleFunc("/users", createUserHandler).Methods("POST")
 	router.HandleFunc("/users/{id}", getUserHandler).Methods("GET")
+	router.HandleFunc("/users/{id}/onboarding", updateOnboardingHandler).Methods("PUT")
 	router.HandleFunc("/users/{id}", updateUserHandler).Methods("PUT")
 	router.HandleFunc("/users/{id}", deleteUserHandler).Methods("DELETE")
 	router.HandleFunc("/users/{id}/p-schein", updatePScheinHandler).Methods("PUT")
@@ -349,6 +350,38 @@ func verifyPScheinHandler(w http.ResponseWriter, r *http.Request) {
 
 	user.UpdatedAt = now
 	userStore.mu.Unlock()
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(user)
+}
+func updateOnboardingHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	var input struct {
+		PScheinNumber string `json:"p_schein_number"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	userStore.mu.Lock()
+	user, ok := userStore.users[id]
+	if !ok {
+		userStore.mu.Unlock()
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	user.PScheinNumber = input.PScheinNumber
+	user.PScheinStatus = PScheinPending
+	now := time.Now()
+	user.UpdatedAt = now
+	userStore.mu.Unlock()
+
+	logger.Printf("User %s submitted P-Schein %s for verification", id, input.PScheinNumber)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(user)
