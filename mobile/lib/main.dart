@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'screens/onboarding_screen.dart';
+import 'screens/verification_screen.dart';
 
 void main() {
   runApp(const RideShareApp());
@@ -15,21 +17,11 @@ class RideShareApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
         useMaterial3: true,
       ),
-      home: const OnboardingScreen(),
-    );
-  }
-}
-
-class OnboardingScreen extends StatelessWidget {
-  const OnboardingScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Welcome')),
-      body: const Center(
-        child: Text('Onboarding Flow Start'),
-      ),
+      initialRoute: '/',
+      routes: {
+        '/': (context) => const OnboardingScreen(),
+        '/verify': (context) => const VerificationScreen(),
+      },
     );
   }
 }
