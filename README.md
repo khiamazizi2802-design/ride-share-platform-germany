@@ -4,20 +4,22 @@ Production-ready ride-sharing platform compliant with German regulations (PBefG,
 
 ## Project Status
 
-**Phase 2 (Build):** 11 of 16 microservices committed â
+**Phase 2 (Build):** 10 of 16 microservices committed ✅
 
 | Component | Progress | Status |
 |-----------|----------|--------|
-| Backend Services | 11/16 | ð In Progress |
-| Mobile Apps | 0/2 | â³ Pending |
-| Web Portals | 0/3 | â³ Pending |
-| Infrastructure | 5/8 | ð In Progress |
+| Backend Services | 11/16 | 🔂 In Progress |
+| Mobile Apps | 0/2 | ⏳ Pending |
+| Web Portals | 0/3 | ⏳ Pending |
+| Infrastructure | 5/8 | 🔂 In Progress |
+
+Documentation: [SERVICE_STATUS.md](SERVICE_STATUS.md)
 
 ## Architecture
 - **Backend**: Microservices in Go, TypeScript, and Python.
 - **Mobile**: Cross-platform apps using Flutter.
 - **Web**: Responsive portals for riders, drivers, and administrators.
-- **Database**: PostgreSQL (PostGIS), Redis, Kafka, ClickHouse.
+- **Database**: PostgreSQL (PostGSI), Redis, Kafka, ClickHouse.
 
 ## Directory Structure
 - `backend/`: Core logic and microservices.
@@ -46,12 +48,15 @@ Production-ready ride-sharing platform compliant with German regulations (PBefG,
 ### Pending Services
 - **admin-dashboard-backend** - Admin operations and analytics
 - **analytics-service** - Data processing and reporting
-- **compliance-service** - German regulatory compliance automation
-- **fleet-service** - Vehicle fleet management
+- **compliance-service** - Regulatory compliance (PBefG, FVs)
+- **promotion-service** - Coupons and discounts engine
 - **support-service** - Customer support ticketing
 
 ## Legal Compliance
-Strict adherence to PBefG, DSGVO, and local city regulations.
+- **PBefG (‘Personenbeförderungsgesetz’)** — German passenger transportation law
+- **DSGVO** — GD-practice Compliance
+- **FVs** — Driver verification requirements
+- **Straßenbaugen** — Municipal operating permits indicator
 
----
-Built with Twin.
+## License
+Proprietary software for the German ride-sharing market.
