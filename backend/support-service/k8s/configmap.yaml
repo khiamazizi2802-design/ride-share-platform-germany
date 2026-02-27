@@ -1,0 +1,34 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: go-support-service-config
+  namespace: default
+  labels:
+    app: go-support-service
+    version: "1.0.0"
+    managed-by: kubectl
+data:
+  APP_ENV: "production"
+  APP_PORT: "8080"
+  LOG_LEVEL: "info"
+  LOG_FORMAT: "json"
+  SERVER_READ_TIMEOUT: "30s"
+  SERVER_WRITE_TIMEOUT: "30s"
+  SERVER_IDLE_TIMEOUT: "60s"
+  GRACEFUL_SHUTDOWN_TIMEOUT: "15s"
+  MAX_REQUEST_SIZE: "10MB"
+  RATE_LIMIT_REQUESTS: "100"
+  RATE_LIMIT_WINDOW: "1m"
+  CORS_ALLOWED_ORIGINS: "*"
+  CORS_ALLOWED_METHODS: "GET,POST,PUT,DELETE,OPTIONS"
+  CORS_ALLOWED_HEADERS: "Content-Type,Authorization,X-Request-ID"
+  CACHE_TTL: "300s"
+  DB_MAX_OPEN_CONNS: "25"
+  DB_MAX_IDLE_CONNS: "10"
+  DB_CONN_MAX_LIFETIME: "5m"
+  METRICS_ENABLED: "true"
+  METRICS_PATH: "/metrics"
+  HEALTH_CHECK_PATH: "/healthz"
+  READINESS_CHECK_PATH: "/readyz"
+  TRACING_ENABLED: "true"
+  TRACING_SAMPLE_RATE: "0.1"
