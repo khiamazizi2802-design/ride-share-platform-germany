@@ -1,0 +1,52 @@
+{
+  "name": "gruenfahrt-admin-dashboard",
+  "version": "1.0.0",
+  "description": "CruenFahrt Admin Dashboard - German Ride-Sharing Platform",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "@emotion/react": "^11.11.3",
+    "@emotion/styled": "^11.11.0",
+    "@mui/icons-material": "^5.15.6",
+    "@mui/material": "^5.15.6",
+    "@mui/x-data-grid": "^6.19.2",
+    "@mui/x-date-pickers": "^6.19.2",
+    "@tanstack/react-query": "^5.17.19",
+    "axios": "^1.6.5",
+    "chart.js": "^4.4.1",
+    "date-fns": "^3.3.1",
+    "leaflet": "^1.9.4",
+    "react": "^18.2.0",
+    "react-chartjs-2": "^5.2.0",
+    "react-dom": "^18.2.0",
+    "react-hook-form": "^7.49.3",
+    "react-leaflet": "^4.2.1",
+    "react-router-dom": "^6.21.3",
+    "recharts": "^2.10.4",
+    "socket.io-client": "^4.7.4",
+    "zod": "^3.22.4",
+    "zustand": "^4.5.0"
+  },
+  "devDependencies": {
+    "@types/leaflet": "^1.9.8",
+    "@types/node": "^20.11.5",
+    "@types/react": "^18.2.48",
+    "@types/react-dom": "^18.2.18",
+    "@typescript-eslint/eslint-plugin": "^6.19.1",
+    "@typescript-eslint/parser": "^6.19.1",
+    "@vitejs/plugin-react": "^4.2.1",
+    "eslint": "^8.56.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.4.5",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.12",
+    "vitest": "^1.2.1"
+  }
+}
