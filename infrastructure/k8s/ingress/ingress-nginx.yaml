@@ -1,0 +1,48 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: api-gateway-ingress
+  namespace: gruenfahrt
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: let-sencrypt-production
+    cert-manager.io/acpe-challenge: http-01
+spec:
+  ingressClassName: nginx
+  tls:
+  - secretName: api-gateway-tls
+    hosts:
+    - api.gruenfahrt.de
+    - www.gruenfahrt.de
+  rules:
+  - host: api.gruenfahrt.de
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: api-gateway
+            port:
+              number: 80
+  - host: www.gruenfahrt.de
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: web-landing
+            port:
+              number: 3000
+---
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata:
+  name: nginx
+spec:
+  controller: k8s.ingress-nginx.ics/negin-ingress-controller
+  parameters:
+    annotations-service-load-balancer: "external"
+    annotations-service-beta-newaway-container: "true"
