@@ -1,0 +1,367 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rideshare
+  labels:
+    app.kubernetes.io/part-of: rideshare-platform
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vehicle-management-config
+  namespace: rideshare
+  labels:
+    app: vehicle-management-service
+    version: v1
+data:
+  APP_ENV: "production"
+  APP_PORT: "8083"
+  LOG_LEVEL: "info"
+  DB_HOST: "postgres-service"
+  DB_PORT: "5432"
+  DB_NAME: "vehicle_management"
+  DB_MAX_OPEN_CONNS: "25"
+  DB_MAX_IDLE_CONNS: "10"
+  DB_CONN_MAX_LIFETIME: "30m"
+  REDIS_HOST: "redis-service"
+  REDIS_PORT: "6379"
+  REDIS_DB: "2"
+  MONGO_HOST: "mongodb-service"
+  MONGO_PORT: "27017"
+  MONGO_DB: "vehicle_telemetry"
+  GRPC_PORT: "9093"
+  JAEGER_ENDPOINT: "http://jaeger-collector:14268/api/traces"
+  VEHICLE_CACHE_TTL: "300"
+  TELEMETRY_BATCH_SIZE: "100"
+  INSPECTION_REMINDER_DAYS: "30"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: vehicle-management-secrets
+  namespace: rideshare
+  labels:
+    app: vehicle-management-service
+type: Opaque
+data:
+  DB_USER: dmVoaWNsZV91c2Vy
+  DB_PASSWORD: dmVoaWNsZVBhc3N3b3Jk
+  REDIS_PASSWORD: cmVkaXNQYXNzd29yZA==
+  MONGO_USER: bW9uZ29Vc2Vy
+  MONGO_PASSWORD: bW9uZ29QYXNzd29yZA==
+  JWT_SECRET: dmVoaWNsZU1hbmFnZW1lbnRKV1RTZWNyZXQ=
+  ENCRYPTION_KEY: ZW5jcnlwdGlvbktleUZvclZlaGljbGVz
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vehicle-management-service
+  namespace: rideshare
+  labels:
+    app: vehicle-management-service
+    version: v1
+    component: backend
+    tier: service
+  annotations:
+    deployment.kubernetes.io/revision: "1"
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8083"
+    prometheus.io/path: "/metrics"
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: vehicle-management-service
+      version: v1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: vehicle-management-service
+        version: v1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8083"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: vehicle-management-sa
+      terminationGracePeriodSeconds: 60
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - vehicle-management-service
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: vehicle-management-service
+          image: rideshare/vehicle-management-service:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8083
+              protocol: TCP
+            - name: grpc
+              containerPort: 9093
+              protocol: TCP
+            - name: metrics
+              containerPort: 9093
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: vehicle-management-config
+            - secretRef:
+                name: vehicle-management-secrets
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+            successThreshold: 1
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+            successThreshold: 1
+          startupProbe:
+            httpGet:
+              path: /health/startup
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 12
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 10"]
+          volumeMounts:
+            - name: tmp-dir
+              mountPath: /tmp
+            - name: vehicle-docs-storage
+              mountPath: /app/storage/documents
+      volumes:
+        - name: tmp-dir
+          emptyDir: {}
+        - name: vehicle-docs-storage
+          persistentVolumeClaim:
+            claimName: vehicle-docs-pvc
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vehicle-management-service
+  namespace: rideshare
+  labels:
+    app: vehicle-management-service
+    version: v1
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8083"
+spec:
+  type: ClusterIP
+  selector:
+    app: vehicle-management-service
+    version: v1
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8083
+      protocol: TCP
+    - name: grpc
+      port: 9093
+      targetPort: 9093
+      protocol: TCP
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: vehicle-management-hpa
+  namespace: rideshare
+  labels:
+    app: vehicle-management-service
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: vehicle-management-service
+  minReplicas: 3
+  maxReplicas: 12
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 65
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 75
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+        - type: Percent
+          value: 50
+          periodSeconds: 60
+      selectPolicy: Max
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 120
+      selectPolicy: Min
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vehicle-management-sa
+  namespace: rideshare
+  labels:
+    app: vehicle-management-service
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: vehicle-management-role
+  namespace: rideshare
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps", "secrets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: vehicle-management-rolebinding
+  namespace: rideshare
+subjects:
+  - kind: ServiceAccount
+    name: vehicle-management-sa
+    namespace: rideshare
+roleRef:
+  kind: Role
+  apiGroup: rbac.authorization.k8s.io
+  name: vehicle-management-role
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: vehicle-management-pdb
+  namespace: rideshare
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: vehicle-management-service
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: vehicle-docs-pvc
+  namespace: rideshare
+  labels:
+    app: vehicle-management-service
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: standard
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: vehicle-management-netpol
+  namespace: rideshare
+spec:
+  podSelector:
+    matchLabels:
+      app: vehicle-management-service
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: api-gateway
+        - podSelector:
+            matchLabels:
+              app: driver-onboarding-service
+        - podSelector:
+            matchLabels:
+              app: trip-management-service
+      ports:
+        - protocol: TCP
+          port: 8083
+        - protocol: TCP
+          port: 9093
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+    - to:
+        - podSelector:
+            matchLabels:
+              app: redis
+      ports:
+        - protocol: TCP
+          port: 6379
+    - to:
+        - podSelector:
+            matchLabels:
+              app: mongodb
+      ports:
+        - protocol: TCP
+          port: 27017
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 53
+        - protocol: UDP
+          port: 53
