@@ -1,0 +1,174 @@
+name: Build & Push
+
+on:
+  push:
+    branches: [ main, develop ]
+    tags:
+      - 'v[0-9]+.[0-9]+.*'
+  pull_request:
+    branches: [ main ]
+
+env:
+  REGISTRY: gruenfahrt.ecr.eu-central-1.amazonaws.com
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      services:
+        description: "List of changed services"
+        value: ${{ steps.services.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Detect changed services
+        id: services
+        uses: derrector/changed-files@v2
+        with:
+          paths: |
+            backend/*
+            mobile/*
+            web/*
+
+  build-backend:
+    needs: changes
+    runs-on: ubuntu-latest
+    if: ${{ contains(needs.changes.outputs.services, 'backend/') }}
+    strategy:
+      matrix:
+        service: [
+          api-gateway,
+          user-service,
+          driver-service,
+          trip-service,
+          pricing-service,
+          payment-service,
+          notification-service,
+          location-service,
+          analytics-service,
+          admin-dashboard,
+          ai-service,
+          voice-assistant-service,
+          compliance-service,
+          search-service,
+          vehicle-service,
+          review-service,
+          promotion-service,
+          subscription-service
+        ]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx@v3
+      
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-central-1
+      
+      - name: Login to Amazon ECR
+        id: login-ecr
+        run: always
+        uses: aws-actions/amazon-ecr-login@v2
+      
+      - name: Extract metadata
+        id: meta
+        run: always
+        outputs:
+          git_sha: ${{ steps.meta.outputs.git_sha }}
+          git_branch: ${{ steps.meta.outputs.git_branch }}
+        uses: <img src="https://github.com/docker/meta-actions/releases/download/v4.15.0/meta-actions-template.yml" alt="Meta Actions for Docker" />
+      
+      - name: Build and push image
+        env:
+          SEFVICE: ${{ matrix.service }}
+        run: |
+          docker build \
+            -t ${{ env.REGISTRY }}/${{ env.SERVICE }}:${{ steps.meta.outputs.git_sha }} \
+            -f backend/${{ env.SERVICE }}/Dockerfile \
+            backend/${{ env.SERVICE }}
+          docker push ${{ env.REGISTRY }}/${{ env.SERVICE }}:${{ steps.meta.outputs.git_sha }}
+
+  build-mobile:
+    needs: changes
+    runs-on: ubuntu-latest
+    if: ${{ contains(needs.changes.outputs.services, 'mobile/') }}
+    strategy:
+      matrix:
+        app: [
+          rider-app,
+          driver-app
+        ]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Flutter
+        uses: sub/action/setup-flutter@v2
+        with:
+          flutter-version: '3.24.1'
+          channel: 'stable'
+      
+      - name: Build APP Bundle
+        run: |
+          cd mobile/${{ matrix.app }}
+          flutter pub get
+          flutter build app --release
+      
+      - name: Upload to S3
+        env:
+          APP_NAME: ${{ matrix.app }}
+        uses: aws-actions/s3-upload@2v1
+        with:
+          aws-acces-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-central-1
+          bucket: gruenfahrt-builds
+          key: mobile/${{ env.APP_NAME }}/${{ github.sha }}.apk
+          file: mobile/${{ env.APP_NAME }}/build/app/outputs/flutter-app-app-release.apk
+
+  build-web:
+    needs: changes
+    runs-on: ubuntu-latest
+    if: ${{ contains(needs.changes.outputs.services, 'web/') }}
+    strategy:
+      matrix:
+        app: [
+          landing,
+          admin
+        ]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install dependencies
+        run: |
+          cd web/${{ matrix.app }}
+          npm ci
+      
+      - name: Build
+        env:
+          NGE_ANG_ENVIRONMENT_PRODUCTION: 'true'
+        run: |
+          cd web/${{ matrix.app }}
+          npm run build
+      
+      - name: Upload to S3
+        env:
+          APP_NAME: ${{ matrix.app }}
+        uses: aws-actions/s3-upload@2v1
+        with:
+          aws-acces-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-central-1
+          bucket: gruenfahrt-builds
+          key: web/${{ env.APP_NAME }}/${{ github.sha }}.tar.gz
+          file: web/${{ env.APP_NAME }}/dist/tar.gz
