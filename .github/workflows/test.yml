@@ -1,0 +1,126 @@
+name: Test
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test-backend:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [
+          api-gateway,
+          user-service,
+          driver-service,
+          trip-service,
+          pricing-service,
+          payment-service,
+          notification-service,
+          location-service,
+          analytics-service,
+          admin-dashboard,
+          ai-service,
+          voice-assistant-service,
+          compliance-service,
+          search-service,
+          vehicle-service,
+          review-service,
+          promotion-service,
+          subscription-service
+        ]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+      
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ matrix.service }}-${{ hashFiles('backend/${{ matrix.service }}/go.sum') }}
+      
+      - name: Run unit tests
+        run: |
+          cd backend/${{ matrix.service }}
+          go test -v ./...
+      
+      - name: Run integration tests
+        env:
+          GO_ENV: test
+        run: |
+          cd backend/${{ matrix.service }}
+          go test -v .../test/integration/...
+
+  test-mobile:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: [
+          rider-app,
+          driver-app
+        ]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Flutter
+        uses: sub/action/setup-flutter@v2
+        with:
+          flutter-version: '3.24.1'
+          channel: 'stable'
+      
+      - name: Run flutter tests
+        run: |
+          cd mobile/${{ matrix.app }}
+          flutter pub get
+          flutter test --coverage
+  
+  test-web:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: [
+          landing,
+          admin
+        ]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install dependencies
+        run: |
+          cd web/${{ matrix.app }}
+          npm ci
+      
+      - name: Run linter
+        run: |
+          cd web/${{ matrix.app }}
+          npm run lint
+      
+      - name: Run tests
+        run: |
+          cd web/${{ matrix.app }}
+          npm test --coverage
+      
+      - name: Run e2e tests
+        run: |
+          cd web/${{ matrix.app }}
+          npm run test:e2e
+
+  coverage:
+    needs: [test-backend, test-mobile, test-web]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update coverage badge
+        uses: codecov/codecov-action@v4
+        with:
+          file: coverage/out.lov
