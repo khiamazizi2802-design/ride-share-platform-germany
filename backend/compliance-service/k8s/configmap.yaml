@@ -1,0 +1,58 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: compliance-service-config
+  namespace: default
+  labels:
+    app: compliance-service
+    version: v1
+    component: backend
+data:
+  APP_ENV: "production"
+  APP_PORT: "8018"
+  LOG_LEVEL: "info"
+  TZ: "Europe/Berlin"
+  POSTGRES_HOST: "postgres-service"
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: "compliance_db"
+  POSTGRES_SSL_MODE: "require"
+  POSTGRES_MAX_CONNECTIONS: "20"
+  POSTGRES_IDLE_CONNECTIONS: "5"
+  POSTGRES_CONNECTION_TIMEOUT: "30s"
+  REDIS_HOST: "redis-service"
+  REDIS_PORT: "6379"
+  REDIS_DB: "0"
+  REDIS_MAX_RETRIES: "3"
+  REDIS_POOL_SIZE: "10"
+  REDIS_DIAL_TIMEOUT: "5s"
+  REDIS_READ_TIMEOUT: "3s"
+  REDIS_WRITE_TIMEOUT: "3s"
+  KAFKA_BROKERS: "kafka-service:9092"
+  KAFKA_GROUP_ID: "compliance-service-group"
+  KAFKA_AUTO_OFFSET_RESET: "earliest"
+  KAFKA_SESSION_TIMEOUT: "30000"
+  KAFKA_HEARTBEAT_INTERVAL: "10000"
+  KAFKA_MAX_POLL_RECORDS: "500"
+  KAFKA_TOPIC_COMPLIANCE_EVENTS: "compliance-events"
+  KAFKA_TOPIC_AUDIT_LOGS: "audit-logs"
+  DATA_RETENTION_DAYS: "365"
+  DATA_RETENTION_AUDIT_DAYS: "2555"
+  DATA_RETENTION_POLICY: "gdpr-compliant"
+  DATA_RETENTION_CLEANUP_SCHEDULE: "0 2 * * *"
+  DATA_ARCHIVE_ENABLED: "true"
+  DATA_ARCHIVE_BUCKET: "compliance-archive"
+  HTTP_READ_TIMEOUT: "30s"
+  HTTP_WRITE_TIMEOUT: "30s"
+  HTTP_IDLE_TIMEOUT: "120s"
+  GRPC_MAX_RECV_MSG_SIZE: "10485760"
+  GRPC_MAX_SEND_MSG_SIZE: "10485760"
+  JWT_ISSUER: "compliance-service"
+  JWT_AUDIENCE: "internal-services"
+  JWT_EXPIRY: "3600"
+  METRICS_ENABLED: "true"
+  METRICS_PORT: "9090"
+  TRACING_ENABLED: "true"
+  TRACING_JAEGER_ENDPOINT: "http://jaeger-collector:14268/api/traces"
+  RATE_LIMIT_ENABLED: "true"
+  RATE_LIMIT_REQUESTS_PER_SECOND: "100"
+  RATE_LIMIT_BURST: "200"
