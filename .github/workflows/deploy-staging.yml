@@ -1,0 +1,88 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches: [ develop ]
+  workflow_run:
+    workflows: [ "Build & Push" ]
+    types:
+      - completed
+    branches: [ develop ]
+
+env:
+  KUBE_CONFIG_PATH: /home/runner/.kube/config
+  KUBE_NAMESPACE: gruenfahrt-staging
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      ENV: staging
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Configure PWA
+        run: echo ${{ secrets.KUBE_CONFIG }} | base64 -d > ${{ env.KUBE_CONFIG_PATH }}/config
+      
+      - name: Install helm
+        run: |
+          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+      
+      - name: Add Kubernetes cluster
+        run: |
+          kubectl config set-cluster --server=https://k8s.staging.gruenfahrt.de \
+            --certificate-authority=${{ env.KUBE_CONFIG_PATH }}/ca certificate.crt \
+            --client-certificate=${{ env.KUBE_CONFIG_PATH }}/client-certificate.crt \
+            --client-key=${{ env.KUBE_CONFIG_PATH }}/client-key.pem
+      
+      - name: Deploy namespaces
+        run: |
+          kubectl apply -f infrastructure/k8s/namespaces/
+      
+      - name: Deploy secrets
+        run: |
+          kubectl create secret generic database-secrets \
+            --from-literal='DATABASE_URL=postgresql://postgres:postgres@postgresql:5432/gruenfahrt_db' \
+            --from-literal='DATABASE_PASSWORD=postgres' \
+            --namespace=${{ env.KUBE_NAMESPACE }}
+          kubectl create secret generic api-secrets \
+            --from-literal='SECRET_KEY=your-staging-secret-key' \
+            --namespace=${{ env.KUBE_NAMESPACE }}
+      
+      - name: Deploy ConfigMaps
+        run: |
+          kubectl namespace gruenfahrt-staging
+          kubectl apply -f infrastructure/k8s/configmaps/
+      
+      - name: Deploy infrastructure services
+        run: |
+          kubectl apply -f infrastructure/k8s/services/postgresql.yaml -n ${{ env.KUBE_NAMESPACE }}
+          kubectl apply -f infrastructure/k8s/services/redis.yaml -n ${{ env.KUBE_NAMESPACE }}
+      
+      - name: Deploy backend services
+        run: |
+          for service in api-gateway user-service driver-service trip-service pricing-service payment-service notification-service location-service analytics-service admin-dashboard ai-service voice-assistant-service compliance-service search-service vehicle-service review-service promotion-service subscription-service; do
+            echo "Deploying $service..."
+            kubectl apply -f infrastructure/k8s/services/${service}.yaml -n ${{ env.KUBE_NAMESPACE }}
+          done
+      
+      - name: Deploy HPA
+        run: |
+          kubectl apply -f infrastructure/k8s/hpa/ -n ${{ env.KUBE_NAMESPACE }}
+      
+      - name: Wait for rollout
+        run: |
+          kubectl wait for deployment api-gateway -n ${{ env.KUBE_NAMESPACE }} --for-condition=available --timeout=300s
+      
+      - name: Verify deployment
+        run: |
+          kubectl get deployments -n ${{ env.KUBE_NAMESPACE }}
+          kubectl get pods -n ${{ env.KUBE_NAMESPACE }}
+      
+      - name: Slack Notification
+        uses: 429901731/gh-action-slack@v1.2.3
+        if:: always()
+        with:
+          slack-webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          slack-channel: deployments
+          message: 'Staging deployment completed :away:'
