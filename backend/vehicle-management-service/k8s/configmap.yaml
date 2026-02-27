@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vehicle-management-config
+  namespace: rideshare
+  labels:
+    app: vehicle-management-service
+    version: v1
+data:
+  APP_ENV: "production"
+  APP_PORT: "8083"
+  LOG_LEVEL: "info"
+  DB_HOST: "postgres-service"
+  DB_PORT: "5432"
+  DB_NAME: "vehicle_management"
+  DB_MAX_OPEN_CONNS: "25"
+  DB_MAX_IDLE_CONNS: "10"
+  DB_CONN_MAX_LIFETIME: "30m"
+  REDIS_HOST: "redis-service"
+  REDIS_PORT: "6379"
+  REDIS_DB: "2"
+  KAFKA_BROKERS: "kafka:9092"
+  JAEGER_ENDPOINT: "http://jaeger-collector:14268/api/traces"
+  VEHICLE_CACHE_TTL: "300"
+  DOCUMENT_REMINDER_DAYS: "30"
+  INSPECTION_REMINDER_DAYS: "30"
