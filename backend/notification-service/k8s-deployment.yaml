@@ -1,0 +1,333 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: notification-service
+  namespace: default
+  labels:
+    app: notification-service
+    version: v1
+  annotations:
+    description: "Service account for the notification service"
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: notification-service-config
+  namespace: default
+  labels:
+    app: notification-service
+    version: v1
+data:
+  APP_ENV: "production"
+  APP_PORT: "8080"
+  LOG_LEVEL: "info"
+  LOG_FORMAT: "json"
+  NOTIFICATION_RETENTION_DAYS: "30"
+  NOTIFICATION_BATCH_SIZE: "100"
+  NOTIFICATION_MAX_RETRIES: "3"
+  NOTIFICATION_RETRY_BACKOFF_MS: "1000"
+  RATE_LIMIT_ENABLED: "true"
+  RATE_LIMIT_REQUESTS_PER_SECOND: "100"
+  RATE_LIMIT_BURST_SIZE: "200"
+  RATE_LIMIT_PER_USER_RPS: "10"
+  RATE_LIMIT_PER_USER_BURST: "20"
+  HEALTH_CHECK_PATH: "/health"
+  METRICS_PATH: "/metrics"
+  METRICS_ENABLED: "true"
+  GRPC_MAX_RECV_MSG_SIZE: "4194304"
+  GRPC_MAX_SEND_MSG_SIZE: "4194304"
+  CACHE_TTL_SECONDS: "300"
+  CACHE_MAX_SIZE: "10000"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: notification-service-secrets
+  namespace: default
+  labels:
+    app: notification-service
+    version: v1
+  annotations:
+    description: "Secrets for the notification service - replace values with actual base64 encoded secrets"
+type: Opaque
+data:
+  DATABASE_URL: cGxhY2Vob2xkZXItZGItdXJsLWNoYW5nZS1tZQ==
+  DATABASE_PASSWORD: cGxhY2Vob2xkZXItZGItcGFzc3dvcmQ=
+  SMTP_PASSWORD: cGxhY2Vob2xkZXItc210cC1wYXNzd29yZA==
+  SMTP_USERNAME: cGxhY2Vob2xkZXItc210cC11c2VybmFtZQ==
+  PUSH_NOTIFICATION_API_KEY: cGxhY2Vob2xkZXItcHVzaC1hcGkta2V5
+  SMS_API_KEY: cGxhY2Vob2xkZXItc21zLWFwaS1rZXk=
+  JWT_SECRET: cGxhY2Vob2xkZXItand0LXNlY3JldC1jaGFuZ2UtbWU=
+  REDIS_PASSWORD: cGxhY2Vob2xkZXItcmVkaXMtcGFzc3dvcmQ=
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service
+  namespace: default
+  labels:
+    app: notification-service
+    version: v1
+    tier: backend
+  annotations:
+    deployment.kubernetes.io/revision: "1"
+    description: "Notification service deployment"
+spec:
+  replicas: 3
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app: notification-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: notification-service
+        version: v1
+        tier: backend
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: notification-service
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - notification-service
+                topologyKey: kubernetes.io/hostname
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: notification-service
+      containers:
+        - name: notification-service
+          image: notification-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "250m"
+          envFrom:
+            - configMapRef:
+                name: notification-service-config
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: notification-service-secrets
+                  key: DATABASE_URL
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: notification-service-secrets
+                  key: DATABASE_PASSWORD
+            - name: SMTP_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: notification-service-secrets
+                  key: SMTP_USERNAME
+            - name: SMTP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: notification-service-secrets
+                  key: SMTP_PASSWORD
+            - name: PUSH_NOTIFICATION_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: notification-service-secrets
+                  key: PUSH_NOTIFICATION_API_KEY
+            - name: SMS_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: notification-service-secrets
+                  key: SMS_API_KEY
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: notification-service-secrets
+                  key: JWT_SECRET
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: notification-service-secrets
+                  key: REDIS_PASSWORD
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 12
+          volumeMounts:
+            - name: tmp-dir
+              mountPath: /tmp
+            - name: cache-dir
+              mountPath: /app/cache
+      volumes:
+        - name: tmp-dir
+          emptyDir: {}
+        - name: cache-dir
+          emptyDir:
+            sizeLimit: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-service
+  namespace: default
+  labels:
+    app: notification-service
+    version: v1
+    tier: backend
+  annotations:
+    description: "ClusterIP service for the notification service"
+spec:
+  type: ClusterIP
+  selector:
+    app: notification-service
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8080
+      targetPort: 8080
+  sessionAffinity: None
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: notification-service-pdb
+  namespace: default
+  labels:
+    app: notification-service
+    version: v1
+  annotations:
+    description: "Pod disruption budget to ensure high availability"
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: notification-service
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: notification-service-hpa
+  namespace: default
+  labels:
+    app: notification-service
+    version: v1
+  annotations:
+    description: "HPA for the notification service scaling between 3 and 10 replicas"
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: notification-service
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+        - type: Percent
+          value: 50
+          periodSeconds: 60
+      selectPolicy: Max
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 120
+      selectPolicy: Min
