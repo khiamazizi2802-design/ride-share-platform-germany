@@ -1,0 +1,48 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/promtail-positions.yaml
+
+client:
+  url: http://loki:3100
+  bucket_names:
+  - index
+  external_labels:
+    job: ${{.Common"labels.job_name" }}
+    __path__: ${{.Replace /\/.* "" .Replace /\:/ "/" .Path }}
+    cluster: kubernetes
+    namespace: ${{.Replace /\/.* "" .Replace /\:/ "/" .Path }}
+    pod: ${{.Replace /\/.* "" .Replace /\:/ "/" .Path }}
+    container: ${{.Replace /\/.* "" .Replace /\:/ "/" .Path }}
+scrape_configs:
+- job_name: kubernetes-pod-logs
+  kubernetes_sd_configs:
+  - role: pod
+  bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+  tls_config:
+    ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+  relabel_configs:
+  - source_labels: ['__meta_kubernetes_pod_node_name']
+    target_label: 'hostname'
+  - source_labels: ['__meta_kubernetes_pod_name']
+    target_label: 'pod'
+  - source_labels: ['__meta_kubernetes_pod_namespace']
+    target_label: 'namespace'
+  - source_labels: ['__meta_kubernetes_pod_container_name']
+    target_label: 'container'
+  - source_labels: ['__meta_kubernetes_pod_label_app']
+    target_label: 'app'
+  - source_labels: ['__meta_kubernetes_pod_label_service']
+    target_label: 'service'
+  pipeline_stages:
+  - match:
+      selector: '{pod=~".+", namespace="~"gruenfahrt"}'
+    stages:
+    - cri:
+      source: pod
+      whitelist:
+      - /run/containerd/.+/.*.log
+      - /var/log/pods/*.log
+      - /var/log/containers/.*/.*.log
