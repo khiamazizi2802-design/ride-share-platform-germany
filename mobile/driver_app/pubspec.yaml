@@ -1,0 +1,63 @@
+name: gruenfahrt_driver_app
+description: GruenFahrt Driver App - German ride-sharing platform for drivers
+publish_to_publish: none
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.2
+  flutter_bloc: ^8.0.1
+  flutter_bloc_test: ^8.0.1
+  equatable: ^2.0.0
+  flutter_rverpod: ^2.4.10
+  flutter_riverpod_annotation:
+    dependency: direct_main
+  dios: ^5.4.0
+  retrofit: ^4.1.0
+  json_annotation: ^4.9.0
+  google_maps_flutter: ^2.9.0
+  google_maps_flutter_android: ^2.14.0
+  google_maps_flutter_ios: ^2.9.0
+  geolocator: ^11.0.0
+  geocoding_for_flutter: ^3.0.0
+  firebase_core: ^2.31.0
+  firebase_messaging: ^15.0.4
+  firebase_analytics: ^11.3.0
+  firebase_crashlytics: ^4.2.0
+  flutter_localizations:
+    sdk: flutter
+  speech_to_text: ^6.6.1
+  flutter_tts: ^4.0.2
+  permission_handler: ^11.3.0
+  shared_preferences: ^2.3.2
+  intl: ^0.19.0
+  flutter_svg: ^2.0.0
+  shimmer_loading: ^0.9.1
+  flutter_slideaction: ^3.1.1
+  flutter_typeahead: ^5.2.0
+  flutter_next_delugation_manager: ^0.2.0
+  flutter_notifications: ^17.0.0
+  web_socket_channel: ^2.4.0
+  crypto: ^3.0.3
+  flutter_secure_storage: ^9.2.2
+  url_launcher: ^6.2.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  bloc_test: ^9.1.4
+  mocktail: ^1.0.0
+  build_runner: ^5.4.0
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+  generate: true
+
+flutter_intl:
+  synthetics-options:
+    experimental: false
