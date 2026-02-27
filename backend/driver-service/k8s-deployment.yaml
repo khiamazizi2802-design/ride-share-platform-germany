@@ -1,0 +1,194 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: driver-service
+  namespace: default
+  labels:
+    app: driver-service
+    version: v1
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: driver-service-config
+  namespace: default
+  labels:
+    app: driver-service
+    version: v1
+data:
+  APP_ENV: "production"
+  APP_PORT: "8080"
+  LOG_LEVEL: "info"
+  RATE_LIMIT_ENABLED: "true"
+  RATE_LIMIT_REQUESTS_PER_SECOND: "100"
+  LOCATION_RETENTION_HOURS: "24"
+  EARNINGS_CACHE_TTL_MINUTES: "5"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: driver-service-secret
+  namespace: default
+  labels:
+    app: driver-service
+    version: v1
+type: Opaque
+data:
+  DB_PASSWORD: cGxhY2Vob2xkZXItcGFzc3dvcmQ=
+  DB_USERNAME: cGxhY2Vob2xkZXItdXNlcm5hbWU=
+  DB_HOST: cGxhY2Vob2xkZXItaG9zdA==
+  DB_PORT: NTQzMg==
+  DB_NAME: cGxhY2Vob2xkZXItZGJuYW1l
+  REDIS_URL: cGxhY2Vob2xkZXItcmVkaXMtdXJs
+  REDIS_PASSWORD: cGxhY2Vob2xkZXItcmVkaXMtcGFzc3dvcmQ=
+  JWT_SECRET: cGxhY2Vob2xkZXItand0LXNlY3JldA==
+  API_KEY: cGxhY2Vob2xkZXItYXBpLWtleQ==
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: driver-service
+  namespace: default
+  labels:
+    app: driver-service
+    version: v1
+spec:
+  type: ClusterIP
+  selector:
+    app: driver-service
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: driver-service
+  namespace: default
+  labels:
+    app: driver-service
+    version: v1
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: driver-service
+  template:
+    metadata:
+      labels:
+        app: driver-service
+        version: v1
+    spec:
+      serviceAccountName: driver-service
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 2000
+      containers:
+        - name: driver-service
+          image: driver-service:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: driver-service-config
+            - secretRef:
+                name: driver-service-secret
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+            successThreshold: 1
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+            successThreshold: 1
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp-dir
+              mountPath: /tmp
+      volumes:
+        - name: tmp-dir
+          emptyDir: {}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - driver-service
+                topologyKey: kubernetes.io/hostname
+      terminationGracePeriodSeconds: 30
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: driver-service-hpa
+  namespace: default
+  labels:
+    app: driver-service
+    version: v1
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: driver-service
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 120
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 60
