@@ -1,0 +1,60 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gruenfahrt-shared-config
+  namespace: gruenfahrt
+  labels:
+    app: gruenfahrt
+    component: config
+data:
+  # Application Settings
+  APP_ENV: "production"
+  APP_LOG_LEVEL: "info"
+  APP_TIMEZONE: "Europe/Berlin"
+  
+  # Database Settings
+  DATABASE_HOST: "postgresql"
+  DATABASE_PORT: "5432"
+  DATABASE_USER: "postgres"
+  DATABASE_MAX_CONNECTIONS: "20"
+  DATABASE_MIN_CONNECTIONS: "5"
+  
+  # Redis Settings
+  REDIS_HOST: "redis"
+  REDIS_PORT: "6379"
+  REDIS_MAX_CONNECTIONS: "100"
+  
+  # Kafka Settings
+  KAFKA_HOST: "kafka"
+  KAFKA_PORT: "9092"
+  KAFKA_REPLICATION_FACTOR: "3"
+  
+  # Elasticsearch Settings
+  ELASTICSEARCH_HOST: "elasticsearch"
+  ELASTICSEARCH_PORT: "9200"
+  
+  # RabbitMQ Settings
+  RABBITMQ_HOST: "rabbitmq"
+  RABBITMQ_PORT: "5672"
+  RABBITMQ_MANAGEMENT_PORT: "15672"
+  
+  # German Regulations (PbefG)
+  PBEFG_COMPLIANCE_MODE: "strict"
+  PBEFG_DATA_RETENTION_DAYS: "90"
+  PBEFG_LOG_RETENTION_DAYS: "365"
+  
+  # Security Settings
+  SECURE_HEADERS_FRAME_OPTIONS: "DENY"
+  SECURE_HEADERS_CSP_POLICY: "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-eval'; img-src 'self' data: https://*.'mapsAPIs.com; font-src 'self'; connect-src 'self'; media-src 'self'; frame-src 'self';"
+  
+  # Performance Settings
+  GO_GC_LIMIT: "100"
+  GO_PROC_LIMIT: "5000"
+  
+  # Feature Flags
+  ENABLE_METRICS: "true"
+  ENABLE_TRACING: "true"
+  ENABLE_LOGGING: "true"
+  ENABLE_AUDIT: "true"
+  ENABLE_RETE_LIMITING: "true"
+  ENABLE_CAACHE_WARMING: "true"
