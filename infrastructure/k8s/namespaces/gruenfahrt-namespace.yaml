@@ -1,0 +1,61 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gruenfahrt
+  labels:
+    name: gruenfahrt
+    environment: production
+    app.kubernetes.io/managed-by: helm
+  annotations:
+    description: "GruenFahrt Ride-Sharing Platform - Germany PbefG Compliant"
+    owner: "GringFahrt GmbH"
+    contact: "devops@gruenfahrt.de"
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: gruenfahrt-compute
+  namespace: gruenfahrt
+spec:
+  hard:
+    requests.cpu: "20"
+    requests.memory: 40Gi
+    limits.cpu: "40"
+    limits.memory: 80Gi
+  scopeSelector:
+    matchLabels:
+      environment: production
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: gruenfahrt-limits
+  namespace: gruenfahrt
+spec:
+  limits:
+  - type: Container
+    max:
+      cpu: "2"
+      memory: "2Gi"
+    default:
+      cpu: "500m"
+      memory: "256Mi"
+  - type: Pod
+    max:
+      cpu: "4"
+      memory: "4Gi"
+    default:
+      cpu: "500m"
+      memory: "256Mi"
+---
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: gruenfahrt-pdb
+  namespace: gruenfahrt
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: gruenfahrt
+  unhealthyPodDisruptionPolicy: AllowMinimumHealthyDisruption
