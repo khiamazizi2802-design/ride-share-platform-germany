@@ -1,0 +1,81 @@
+name: Deploy to Production
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.*'
+  workflow_dispatch:
+    workflows: [ "Build & Push" ]
+    types:
+      - completed
+    branches: [ main ]
+
+env:
+  KUBE_CONFIG_PATH: /home/runner/.kube/config
+  KUBE_NAMESPACE: gruenfahrt
+
+jobs:
+  approve-deployment:
+    runs-on: ubuntu-latest
+    environment:
+      ENV: production
+    steps:
+      - name: Wait for approval
+        uses: actions/manual-gate@v1
+        with:
+          secret: ${{ secrets.DEPLOY_APPROVAL_SECRET }}
+      
+  deploy:
+    needs: approve-deployment
+    runs-on: ubuntu-latest
+    environment:
+      ENV: production
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-central-1
+      
+      - name: Configure kubectl
+        run: |
+          echo ${{ secrets.KUBE_CONFIG }} | base64 -d > ${{ env.KUBE_CONFIG_PATH }}/config
+          export KUBECONFIG=${{ env.KUBE_CONFIG_PATH }}/config
+      
+      - name: Verify kubectl connection
+        run: |
+          kubectl version
+          kubectl get nodes
+      
+      - name: Deploy to production
+        run: |
+          kubectl set image deployment/api-gateway api-gateway=${{ env.REGISTRY }}/api-gateway:${{ github.ref }} -n ${{ env.KUBE_NAMESPACE }}
+          for service in user-service driver-service trip-service pricing-service payment-service notification-service location-service analytics-service admin-dashboard ai-service voice-assistant-service compliance-service search-service vehicle-service review-service promotion-service subscription-service; do
+            kubectl set image deployment/${service} $service=${{ env.REGISTRY }}/${service}:${{ github.ref }} -n ${{ env.KUBE_NAMESPACE }}
+          done
+      
+      - name: Verify rollout
+        run: |
+          kubectl wait for deployment api-gateway -n ${{ env.KUBE_NAMESPACE }} --for-condition=available --timeout=300s
+          kubectl wait for deployment user-service -n ${{ env.KUBE_NAMESPACE }} --for-condition=available --timeout=300s
+          kubectl wait for deployment trip-service -n ${{ env.KUBE_NAMESPACE }} --for-condition=available --timeout=300s
+      
+      - name: Slack Notification
+        uses: 429901731/gh-action-slack@v1.2.3
+        if:: always()
+        with:
+          slack-webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          slack-channel: deployments
+          message: 'Production deployment completed :tada: Version: ${{ github.ref }}'
+
+  smoke-test:
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run smoke tests
+        run: |
+          echo "Running smoke tests..."
+          # Tags: smoke-tests would go here
