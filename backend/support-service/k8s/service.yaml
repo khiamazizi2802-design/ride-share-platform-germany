@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: go-support-service
+  namespace: default
+  labels:
+    app: go-support-service
+    version: "1.0.0"
+    managed-by: kubectl
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "external"
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8080"
+    prometheus.io/path: "/metrics"
+spec:
+  type: ClusterIP
+  selector:
+    app: go-support-service
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8080
+      targetPort: 8080
+    - name: metrics
+      protocol: TCP
+      port: 9090
+      targetPort: 8080
+  sessionAffinity: None
