@@ -1,13 +1,13 @@
-# 🚗 Ride-Sharing Platform — Service Status
+# ð Ride-Sharing Platform â Service Status
 
-> **Last Updated:** February 2026  
+> **Last Updated:** February 27, 2026  
 > **Project Phase:** Active Development  
-> **Progress:** 10 of 16 microservices committed ’
+> **Progress:** 11 of 16 microservices committed â
 
 
 ---
 
-## 📋 Project Overview
+## ð Project Overview
 
 This repository contains the backend microservices architecture for a production-grade ride-sharing platform built for the German market. The system is built on a domain-driven design (DDD) approach, leveraging a fully decoupled microservices architecture to ensure scalability, fault isolation, and independent deployability.
 
@@ -15,140 +15,54 @@ Each service is self-contained with its own database, business logic, API surfac
 
 ---
 
-## 📊 Overall Progress
+## ð Overall Progress
 
 ```
-████████████░░░░░░░░  10 / 16 Services Complete  (62.5%)
+ââââââââââââââââââââ  11 / 16 Services Complete  (68.75%)
 ```
 
 | Phase | Services | Status |
-|-------|---------|--------|
- Phase 1 — Core Infrastructure | api-gateway, auth-service, user-service | ✅ Complete |
- Phase 2 — Ride Operations | matching-service, ride-service, pricing-service, payment-service | ✅ Complete |
- Phase 3 — Safety & Compliance | safety-service, safety-verification-service, driver-onboarding-service | ✅ Complete |
-| Phase 4 — Admin & Operations | admin-dashboard-backend | 🔄 In Progress |
- Phase 5 — Engagement & Support | notification-service, analytics-service, promotion-service, support-service | ⏳ Pending |
- Phase 6 — Regulatory | compliance-service | ⏳ Pending |
+|-------|----------|--------|
+| Phase 1 â Core Infrastructure | api-gateway, auth-service, user-service | â Complete |
+| Phase 2 â Ride Operations | matching-service, ride-service, pricing-service, payment-service | â Complete |
+| Phase 3 â Safety & Compliance | safety-service, safety-verification-service, driver-onboarding-service | â Complete |
+| Phase 4 â Admin & Operations | admin-dashboard-service | â Complete |
+| Phase 5 â Engagement & Support | notification-service, analytics-service, promotion-service, support-service | â�� Pending |
+| Phase 6 â Regulatory | compliance-service | â�� Pending |
 
 ---
 
-## 💡 Service Status Table
+## ð£ Service Status Table
 
 | # | Service | Status | Description | Key Features |
-|----|--------|-------|---------|-----------|
-| 1 | `api-gateway` | ✅  Committed | Unified entry point for all client traffic | Rate limiting, request routing, JWT validation, load balancing |
-| 2 | `auth-service` | ✅  Committed | Authentication & authorization engine | JWT issuance, OAuth2, refresh tokens, MFA |
- 3 | `user-service` | ✅  Committed | User profile management | Profile CRUD, preferences, address management |
- 4 | `matching-service` | ✅  Committed | Ride matching and dispatch engine | Geolocation-based matching, realtime dispatch |
-| 5 | `ride-service` | ✅  Committed | Ride lifecycle management | Ride STATEMACHINE, drainer tracking, fARCompliance |
- 6 | `pricing-service` | ✅  Committed | Dynamic fare calculation | Surve Pricing, time-based rates, dynamic pricing |
-| 7 | `payment-service` | ✅  Committed | Payment processing and billing | PSP integration, wallet, invoicing |
- 8 | `safety-service` | ✅  Committed | Safety features and emergency response | SOS alerts, emergency contacts, crash detection |
-| 9 | `safety-verification-service` | ✅  Committed | Driver safety checks | Background verification, identity validation |
- 10 | &nbsp;`&nsbp;driver-onboarding-service` | ✅  Committed (Present) | Driver KYC, P-Schein, document management | Kundenplichtige Dokumente, GAR-Schein, Verscherungsniss, Verwahrungsdaten |
-| 11 | `admin-dashboard-backend` | 🔀 Next Up (Service #12) | Admin dashboard BACKEND | User management, analytics, system configuration |
-| 12 | `notification-service` | ⏳ Pending | Push notifications and SMS gateway | FCM, APCNs, SMS, email gateway |
- 13 | `analytics-service` | ⏳ Pending | Data warehouse and business intelligence | Reporting, insights, dashboards |
- 14 | `promotion-service` | ⏳ Pending | Coupons and discounts engine | Promo codes, referral system |
- 15 | `support-service` | ⏳ Pending | Customer support ticketing | Help desk, ticketing, KB articles |
-| 16 | `compliance-service` | ⏳ Pending | German regulatory compliance | PBefG, DSGVO, FVs compliance |
+|----|--------|--------|-----------|-----------------|
+| 1 | `api-gateway` | â Committed | Request routing, rate limiting, auth | Kong/Nginx, JWT validation, load balancing |
+| 2 | `auth-service` | â Committed | Identity and Access Management | JWT tokens, refresh tokens, RBAC |
+| 3 | `user-service` | â Committed | User profiles, preferences | Profile CRUD, GDPR compliance |
+| 4 | `matching-service` | â Committed | Real-time driver-rider dispatch | Geospatial indexing, ETA calculation |
+| 5 | `ride-service` | â Committed | Ride lifecycle management | State machine, trip tracking |
+| 6 | `pricing-service` | â Committed | Dynamic pricink, surge calculation | Demand-based pricing, route pricing |
+| 7 | `payment-service` | â Committed | Stripe and TSE integrated payments | PCI compliance, TSE integration |
+| 8 | `safety-service` | â Committed | Safety features, emergency response | SOS button, ride sharing, emergency contacts |
+| 9 | `safety-verification-service` | â Committed | Identity verification | Document verification, selfie matching |
+| 10 | `driver-onboarding-service` | â Committed | KYC, P-Schein, GDPR compliance | Multi-step workflow, document management, audit logs |
+| 11 | `admin-dashboard-service` | â Committed | Admin operations and analytics | User management, analytics dashboard |
+| 12 | `notification-service` | â�� Pending | Push, SMS, email gateway | Multi-channel notifications |
+| 13 | `analytics-service` | â�� Pending | Data processing and reporting | Event streaming, metrics aggregation |
+| 14 | `primotion-service` | â�� Pending | Coupons and discounts engine | Campaign management, referral system |
+| 15 | `support-service` | â�� Pending | Customer support ticketing | Ticket management, chat support |
+| 16 | `compliance-service` | â�� Pending | Regulatory compliance (PBefG, Fvs) | Audit trails, regulatory reporting |
 
 ---
 
-## 🔊 Next Service: Admin Dashboard Backend (Service #12)
+## ð�� Next Steps
 
-Begin building the Admin Dashboard Backend service for the ride-sharing platform.
-
-### Core Features
-
-- **User Management** — User CRUD operations, suspension, verification
-- **Ride Oversight** — View and manage rides, cancellations
-- **Driver Management** — Driver approval, document verification, status override
-- **Analytics** — Revenue reports, usage statistics, KPIs- **System Configuration** — Pricing rules, geofencing, feature flags
-- **Audit Logs** — Comprehensive system audit trailing
-
-### Technical Requirements
-
-- Go service following existing patterns
-- PostgreSQL with migrations
-- REST API with proper middleware
-- Dockerfile and K8s deployment manifests
-- Comprehensive README
-- Integration points with User Service, Driver Onboarding Service, Analytics Service
-
-### Target Structure
-
-```
-backend/admin-dashboard-backend/»-- main.go ⌛ 25-35KB
---- internal/
-     ›-- handlers/
-     ›-- service/
-     ›-- repository/ ›-- models/ ›-- middleware/
-›-- migrations/
-›-- Dockerfile
-�›-- k8s-deployment.yaml
-�›-- README.md
-```
+1. **Build notification-service** - Multi-channel notification gateway
+2. **Build analytics-service** - Data processing and reporting
+3. **Build promotion-service** - Coupons and referral system
+4. **Build support-service** - Customer support ticketing
+5. **Build compliance-service** - Regulatory compliance automation
 
 ---
 
-## 🚁 Architecture Notes
-
-- All services follow the same pattern: `main.go -> service layer -> repository -> DB`
-- Consistent middleware stack: authentication, logging, rate limiting, security headers
-- Database schemas include indexes for performance and foreign key constraints
-
----
-
-## 📄 Integration Points
-
-| Service | Integration Type | Description |
-|--------|-----------------|----------------|
-'’ Auth Service | Sync (REST) | JWT validation, token introspection |
-'’ User Service | Sync (REST) | User profile fetch, update operations |
-|’ Driver Onboarding Service | Sync (REST) | Driver verification, document fetch |
-'’ Notification Service | Async (Events) | Webhooks, event publishing |
-|’ Analytics Service | Async (Events) | Event streaming, metrics pushing |
-’ Payment Service | Sync (REST) | Payment status verification |
-
----
-
-## 📋 Technology Stack
-
-| Layer | Technology |
-|------|-----------|
-'📁 Languages | Go 1.21+, TypeScript, Python |
-📩 Frameworks | Gorilla/Mux, Echo, Gin, React |
-📩 Databases | PostgreSQL (PostGIS), Redis, Kafka |
-|📩 Messaging | Kafka, RabbitMQ, NATS or equivalent |
-📩 Infrastructure | Docker, Kubernetes, Nginx/KS Angel Class |
-📩 Observability | Prometheus, Grafana, Elk |
-
----
-
-## 📌 German Compliance (PBefG)
-
-All services are built with German regulatory compliance in mind:
-
-- **PBefG (‘Personenbeförderungsgesetz’)** — Transportation law compliance
-- **DSGVO** — GD-practice Compliance
-- **FVs** — Driver verification requirements
-- **Straßenbaugen** — Municipal operating permits indicator
-
----
-
-## 📗 Contributing
-
-Services are built in iterative cycles. Each service includes:
-1.. Complete implementation following existing patterns
-2. PostgreSQL migrations with indexes and constraints
-3. Dockerfile and Kubernetes manifests
-4. Comprehensive README with API documentation
-5. Integration points documented
-
----
-
-## 📏 License
-
-This project is proprietary software built for the German ride-sharing market.
-
+*Last updated: February 27, 2026*
