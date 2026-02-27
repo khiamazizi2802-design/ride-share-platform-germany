@@ -1,0 +1,215 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: compliance-audit-service
+  namespace: default
+  labels:
+    app: compliance-audit-service
+    version: v1
+    component: compliance
+    managed-by: kubectl
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: compliance-audit-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: compliance-audit-service
+        version: v1
+        component: compliance
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: compliance-audit-service-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 2000
+        seccompProfile:
+          type: RuntimeDefault
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: compliance-audit-service
+          image: your-registry/compliance-audit-service:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: APP_ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: compliance-audit-config
+                  key: APP_ENV
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: compliance-audit-config
+                  key: LOG_LEVEL
+            - name: SERVER_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: compliance-audit-config
+                  key: SERVER_PORT
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: compliance-audit-config
+                  key: DB_HOST
+            - name: DB_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: compliance-audit-config
+                  key: DB_PORT
+            - name: DB_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: compliance-audit-config
+                  key: DB_NAME
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: compliance-audit-secrets
+                  key: DB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: compliance-audit-secrets
+                  key: DB_PASSWORD
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: compliance-audit-secrets
+                  key: JWT_SECRET
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: compliance-audit-secrets
+                  key: API_KEY
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+            successThreshold: 1
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+            successThreshold: 1
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp-dir
+              mountPath: /tmp
+            - name: config-volume
+              mountPath: /app/config
+              readOnly: true
+      volumes:
+        - name: tmp-dir
+          emptyDir: {}
+        - name: config-volume
+          configMap:
+            name: compliance-audit-config
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - compliance-audit-service
+                topologyKey: kubernetes.io/hostname
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: compliance-audit-service
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: compliance-audit-service-sa
+  namespace: default
+  labels:
+    app: compliance-audit-service
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: compliance-audit-config
+  namespace: default
+  labels:
+    app: compliance-audit-service
+data:
+  APP_ENV: "production"
+  LOG_LEVEL: "info"
+  SERVER_PORT: "8080"
+  DB_HOST: "postgres-service"
+  DB_PORT: "5432"
+  DB_NAME: "compliance_audit_db"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: compliance-audit-secrets
+  namespace: default
+  labels:
+    app: compliance-audit-service
+type: Opaque
+stringData:
+  DB_USER: "changeme"
+  DB_PASSWORD: "changeme"
+  JWT_SECRET: "changeme"
+  API_KEY: "changeme"
