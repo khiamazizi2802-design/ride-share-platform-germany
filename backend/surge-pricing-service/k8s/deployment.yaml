@@ -1,0 +1,407 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rideshare
+  labels:
+    app.kubernetes.io/part-of: rideshare-platform
+    environment: production
+  annotations:
+    description: "Rideshare platform microservices namespace"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: surge-pricing-config
+  namespace: rideshare
+  labels:
+    app: surge-pricing-service
+    app.kubernetes.io/name: surge-pricing-service
+    app.kubernetes.io/component: config
+    app.kubernetes.io/part-of: rideshare-platform
+data:
+  APP_ENV: "production"
+  APP_PORT: "8080"
+  APP_LOG_LEVEL: "info"
+  APP_READ_TIMEOUT: "30s"
+  APP_WRITE_TIMEOUT: "30s"
+  APP_IDLE_TIMEOUT: "120s"
+  DB_HOST: "postgres-service.rideshare.svc.cluster.local"
+  DB_PORT: "5432"
+  DB_NAME: "surge_pricing_db"
+  DB_SSL_MODE: "require"
+  DB_MAX_OPEN_CONNS: "25"
+  DB_MAX_IDLE_CONNS: "10"
+  DB_CONN_MAX_LIFETIME: "5m"
+  REDIS_HOST: "redis-service.rideshare.svc.cluster.local"
+  REDIS_PORT: "6379"
+  REDIS_DB: "0"
+  REDIS_POOL_SIZE: "20"
+  REDIS_MIN_IDLE_CONNS: "5"
+  REDIS_DIAL_TIMEOUT: "5s"
+  REDIS_READ_TIMEOUT: "3s"
+  REDIS_WRITE_TIMEOUT: "3s"
+  KAFKA_BROKERS: "kafka-0.kafka.rideshare.svc.cluster.local:9092,kafka-1.kafka.rideshare.svc.cluster.local:9092,kafka-2.kafka.rideshare.svc.cluster.local:9092"
+  KAFKA_CONSUMER_GROUP: "surge-pricing-consumer-group"
+  KAFKA_TOPIC_RIDE_REQUESTS: "ride-requests"
+  KAFKA_TOPIC_PRICING_EVENTS: "pricing-events"
+  KAFKA_TOPIC_DRIVER_LOCATION: "driver-location-updates"
+  KAFKA_SESSION_TIMEOUT: "30s"
+  KAFKA_HEARTBEAT_INTERVAL: "10s"
+  SURGE_MULTIPLIER_MIN: "1.0"
+  SURGE_MULTIPLIER_MAX: "5.0"
+  SURGE_CALCULATION_INTERVAL: "30s"
+  SURGE_DEMAND_WINDOW: "5m"
+  SURGE_SUPPLY_WINDOW: "5m"
+  PRICING_CACHE_TTL: "60s"
+  PRICING_BASE_FARE: "2.50"
+  PRICING_COST_PER_KM: "1.20"
+  PRICING_COST_PER_MIN: "0.25"
+  METRICS_ENABLED: "true"
+  METRICS_PORT: "9090"
+  TRACING_ENABLED: "true"
+  TRACING_JAEGER_ENDPOINT: "http://jaeger-collector.observability.svc.cluster.local:14268/api/traces"
+  TRACING_SAMPLE_RATE: "0.1"
+  GRPC_PORT: "9000"
+  GRPC_MAX_RECV_MSG_SIZE: "10485760"
+  GRPC_MAX_SEND_MSG_SIZE: "10485760"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: surge-pricing-secrets
+  namespace: rideshare
+  labels:
+    app: surge-pricing-service
+    app.kubernetes.io/name: surge-pricing-service
+    app.kubernetes.io/component: secret
+    app.kubernetes.io/part-of: rideshare-platform
+  annotations:
+    description: "Base64-encoded secrets â replace placeholder values before deploying"
+type: Opaque
+data:
+  DB_USER: cGxhY2Vob2xkZXJfZGJfdXNlcg==
+  DB_PASSWORD: cGxhY2Vob2xkZXJfZGJfcGFzc3dvcmQ=
+  REDIS_PASSWORD: cGxhY2Vob2xkZXJfcmVkaXNfcGFzc3dvcmQ=
+  JWT_SECRET: cGxhY2Vob2xkZXJfand0X3NlY3JldF9rZXk=
+  KAFKA_SASL_USERNAME: cGxhY2Vob2xkZXJfa2Fma2FfdXNlcm5hbWU=
+  KAFKA_SASL_PASSWORD: cGxhY2Vob2xkZXJfa2Fma2FfcGFzc3dvcmQ=
+  ENCRYPTION_KEY: cGxhY2Vob2xkZXJfZW5jcnlwdGlvbl9rZXlfMzJieXRlcw==
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: surge-pricing-service
+  namespace: rideshare
+  labels:
+    app: surge-pricing-service
+    app.kubernetes.io/name: surge-pricing-service
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/part-of: rideshare-platform
+    app.kubernetes.io/managed-by: kubectl
+  annotations:
+    deployment.kubernetes.io/revision: "1"
+    description: "Surge and dynamic pricing microservice for rideshare platform"
+spec:
+  replicas: 3
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app: surge-pricing-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: surge-pricing-service
+        app.kubernetes.io/name: surge-pricing-service
+        app.kubernetes.io/version: "1.0.0"
+        app.kubernetes.io/component: backend
+        app.kubernetes.io/part-of: rideshare-platform
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
+        prometheus.io/scheme: "http"
+        checksum/config: "{{ include (print $.Template.BasePath '/configmap.yaml') . | sha256sum }}"
+        checksum/secret: "{{ include (print $.Template.BasePath '/secret.yaml') . | sha256sum }}"
+    spec:
+      serviceAccountName: surge-pricing-service-sa
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 60
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - surge-pricing-service
+                topologyKey: kubernetes.io/hostname
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/os
+                    operator: In
+                    values:
+                      - linux
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: surge-pricing-service
+      initContainers:
+        - name: db-migration
+          image: rideshare/surge-pricing-service:1.0.0
+          imagePullPolicy: IfNotPresent
+          command: ["/app/migrate", "-direction=up"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities:
+              drop:
+                - ALL
+          envFrom:
+            - configMapRef:
+                name: surge-pricing-config
+            - secretRef:
+                name: surge-pricing-secrets
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"
+      containers:
+        - name: surge-pricing-service
+          image: rideshare/surge-pricing-service:1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+            - name: metrics
+              containerPort: 9090
+              protocol: TCP
+            - name: grpc
+              containerPort: 9000
+              protocol: TCP
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities:
+              drop:
+                - ALL
+          envFrom:
+            - configMapRef:
+                name: surge-pricing-config
+            - secretRef:
+                name: surge-pricing-secrets
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+            limits:
+              cpu: "1000m"
+              memory: "512Mi"
+          livenessProbe:
+            httpGet:
+              path: /healthz/live
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /healthz/ready
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /healthz/startup
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 12
+          volumeMounts:
+            - name: tmp-dir
+              mountPath: /tmp
+            - name: cache-dir
+              mountPath: /app/cache
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 10"]
+      volumes:
+        - name: tmp-dir
+          emptyDir:
+            sizeLimit: "100Mi"
+        - name: cache-dir
+          emptyDir:
+            sizeLimit: "200Mi"
+      imagePullSecrets:
+        - name: rideshare-registry-secret
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: surge-pricing-service-sa
+  namespace: rideshare
+  labels:
+    app: surge-pricing-service
+    app.kubernetes.io/name: surge-pricing-service
+    app.kubernetes.io/component: serviceaccount
+    app.kubernetes.io/part-of: rideshare-platform
+  annotations:
+    description: "Dedicated service account for surge-pricing-service with least-privilege access"
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: surge-pricing-service
+  namespace: rideshare
+  labels:
+    app: surge-pricing-service
+    app.kubernetes.io/name: surge-pricing-service
+    app.kubernetes.io/component: service
+    app.kubernetes.io/part-of: rideshare-platform
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9090"
+    prometheus.io/path: "/metrics"
+spec:
+  type: ClusterIP
+  selector:
+    app: surge-pricing-service
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      protocol: TCP
+    - name: metrics
+      port: 9090
+      targetPort: metrics
+      protocol: TCP
+    - name: grpc
+      port: 9000
+      targetPort: grpc
+      protocol: TCP
+  sessionAffinity: None
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: surge-pricing-service-hpa
+  namespace: rideshare
+  labels:
+    app: surge-pricing-service
+    app.kubernetes.io/name: surge-pricing-service
+    app.kubernetes.io/component: hpa
+    app.kubernetes.io/part-of: rideshare-platform
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: surge-pricing-service
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+        - type: Percent
+          value: 50
+          periodSeconds: 60
+      selectPolicy: Max
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 120
+        - type: Percent
+          value: 20
+          periodSeconds: 120
+      selectPolicy: Min
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: surge-pricing-service-pdb
+  namespace: rideshare
+  labels:
+    app: surge-pricing-service
+    app.kubernetes.io/name: surge-pricing-service
+    app.kubernetes.io/component: pdb
+    app.kubernetes.io/part-of: rideshare-platform
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: surge-pricing-service
