@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: surge-pricing-service
+  namespace: rideshare
+  labels:
+    app: surge-pricing-service
+    component: pricing
+    part-of: rideshare-platform
+    managed-by: kubernetes
+  annotations:
+    description: "Service for Surge Pricing and Dynamic Pricing component"
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9090"
+    prometheus.io/path: "/metrics"
+spec:
+  type: ClusterIP
+  selector:
+    app: surge-pricing-service
+    component: pricing
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8080
+      targetPort: 8080
+    - name: metrics
+      protocol: TCP
+      port: 9090
+      targetPort: 9090
